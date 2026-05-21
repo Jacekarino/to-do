@@ -7,5 +7,4 @@ To-Do is a simple web app running Python with Flask framework used to, well, cre
 
 # Running the project:
 
-.\venv\Scripts\Activate.ps1
-python app.py
+.\venv\Scripts\Activate.ps1; python app.py
