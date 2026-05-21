@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="pl">
+
+<head>
+
+    <meta charset="UTF-8">
+    <title>To-Do by Jacekarino</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+
+</head>
+
+<body>
+
+    <div class="container">
+        <h1>To-Do</h1>
+        <button id="open-modal-btn" class="fab-btn">+</button>
+        <div id="task-modal" class="modal-overlay hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>CREATE NEW TASK</h3>
+                    <button type="button" id="close-modal-btn" class="icon-btn">✖</button>
+                </div>
+                <form action="/add" method="POST" id="add-task-form">
+                    <input type="text" name="headline" id="task-headline" placeholder="NAME" maxlength="100" required
+                        autofocus>
+                    <div class="char-counter" id="headline-counter">0 / 100</div>
+
+                    <textarea name="content" id="task-content" placeholder="DESCRIPTION..." rows="1"
+                        maxlength="500"></textarea>
+                    <div class="char-counter" id="content-counter">0 / 500</div>
+
+                    <button type="submit" class="submit-btn">ADD</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="sort-bar">
+            <span style="color: #888; font-weight: bold; padding: 6px 0;">SORT:</span>
+            <a href="/?sort=pos_asc" title="Custom">🔀</a>
+            <a href="/?sort=id_desc" title="Newest">🕒⬆️</a>
+            <a href="/?sort=id_asc" title="Oldest">🕒⬇️</a>
+            <a href="/?sort=headline_asc" title="Headline Asc">🔤⬆️</a>
+            <a href="/?sort=headline_desc" title="Headline Desc">🔤⬇️</a>
+            <a href="/?sort=len_asc" title="Content Asc">📝⬆️</a>
+            <a href="/?sort=len_desc" title="Content Desc">📝⬇️</a>
+        </div>
+
+        <div id="todo-list" style="margin-top: 20px;">
+            {% for task in tasks %}
+            <div class="task-item" data-id="{{ task.id }}">
+                <div class="task-info">
+                    <span class="headline">{{ task.headline }}</span>
+                    <span class="text">{{ task.content }}</span>
+                </div>
+                <div class="action-links" style="align-items: center;">
+                    <span class="timestamp" style="color: #94a3b8; font-size: 0.75rem; margin-right: 10px;">{{
+                        task.created_at.strftime('%Y-%m-%d %H:%M') if task.created_at else '' }}</span>
+                    <a href="/complete/{{ task.id }}" class="complete">✔</a>
+                    <a href="/delete/{{ task.id }}" class="delete">✖</a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <hr>
+
+        <div class="done-header-container">
+
+            <details class="task-section" {% if done %}open{% endif %}>
+                <summary>
+                    <h3>COMPLETED TASKS</h3>
+                </summary>
+
+                {% if not done %}
+                <div class="empty-msg">LIST IS EMPTY</div>
+                {% endif %}
+
+                <ul>
+                    {% for task in done %}
+                    <li class="done-item">
+                        <div class="task-info">
+                            <span class="headline">{{ task.headline }}</span>
+                            <span class="text">{{ task.content }}</span>
+                        </div>
+                        <div class="action-links" style="align-items: center;">
+                            <span class="timestamp" style="color: #94a3b8; font-size: 0.75rem; margin-right: 10px;">{{
+                                task.created_at.strftime('%d-%m-%Y %H:%M') if task.created_at else '' }}</span>
+                            <a href="/complete/{{ task.id }}">↩</a>
+                            <a href="/delete/{{ task.id }}" class="delete">✖</a>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </details>
+
+            {% if done %}
+            <a href="/delete_completed" class="delete clear-btn">🗑</a>
+            {% endif %}
+
+        </div>
+    </div>
+
+    <div class="theme-switcher">
+        <button onclick="setTheme('light')" class="theme-btn" title="Light Mode">☀️</button>
+        <button onclick="setTheme('dark')" class="theme-btn" title="Dark Mode">🌙</button>
+        <button onclick="setTheme('hc-light')" class="theme-btn" title="High Contrast Light">⚪</button>
+        <button onclick="setTheme('hc-dark')" class="theme-btn" title="High Contrast Dark">⚫</button>
+    </div>
+
+    <script>
+        function setTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            localStorage.setItem('theme', theme);
+        }
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        setTheme(savedTheme);
+    </script>
+
+    <script>
+        var el = document.getElementById('todo-list');
+        var sortable = Sortable.create(el, {
+            animation: 150,
+            ghostClass: 'sortable-ghost',
+            onEnd: function (evt) {
+                var items = el.querySelectorAll('.task-item');
+                var newOrder = [];
+                items.forEach(function (item) {
+                    newOrder.push(item.getAttribute('data-id'));
+                });
+
+                fetch('/reorder', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(newOrder)
+                });
+            }
+        });
+    </script>
+
+    <script>
+        const modal = document.getElementById('task-modal');
+        const openBtn = document.getElementById('open-modal-btn');
+        const closeBtn = document.getElementById('close-modal-btn');
+
+        openBtn.addEventListener('click', () => {
+            modal.classList.remove('hidden');
+        });
+
+        closeBtn.addEventListener('click', () => {
+            modal.classList.add('hidden');
+        });
+
+        const textarea = document.getElementById('task-content');
+
+        textarea.addEventListener('input', function () {
+            this.style.height = 'auto';
+            this.style.height = (this.scrollHeight) + 'px';
+        });
+
+        const headlineInput = document.getElementById('task-headline');
+        const headlineCounter = document.getElementById('headline-counter');
+        const contentInput = document.getElementById('task-content');
+        const contentCounter = document.getElementById('content-counter');
+
+        headlineInput.addEventListener('input', function () {
+            headlineCounter.textContent = `${this.value.length} / 100`;
+        });
+
+        contentInput.addEventListener('input', function () {
+            contentCounter.textContent = `${this.value.length} / 500`;
+        });
+
+        closeBtn.addEventListener('click', () => {
+            modal.classList.add('hidden');
+            contentInput.style.height = 'auto';
+            headlineInput.value = '';
+            contentInput.value = '';
+            headlineCounter.textContent = '0 / 100';
+            contentCounter.textContent = '0 / 500';
+        });
+        closeBtn.addEventListener('click', () => {
+            modal.classList.add('hidden');
+            textarea.style.height = 'auto';
+            textarea.value = '';
+        });
+
+        window.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.classList.add('hidden');
+            }
+        });
+    </script>
+
+</body>
+
+</html>
