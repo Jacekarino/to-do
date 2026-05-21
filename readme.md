@@ -10,9 +10,9 @@ Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 
 python app.py
 
-# Access website:
+# Access web app:
 
-http://127.0.0.1:5001
+localhost:5001
 
 # Stop server:
 
